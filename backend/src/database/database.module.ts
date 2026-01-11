@@ -7,6 +7,7 @@ import { Metric } from '../monitoring/entities/metric.entity';
 import { AgentAction } from '../actions/entities/agent-action.entity';
 import { BaselinePattern } from '../monitoring/entities/baseline-pattern.entity';
 import { ActionHistory } from '../actions/entities/action-history.entity';
+import { DbLog } from '../monitoring/entities/db-log.entity';
 
 @Module({
   imports: [
@@ -25,7 +26,8 @@ import { ActionHistory } from '../actions/entities/action-history.entity';
           Metric,
           AgentAction,
           BaselinePattern,
-          ActionHistory, // Add ActionHistory here
+          ActionHistory,
+          DbLog, // Add DbLog here
         ],
         synchronize: false,
       }),

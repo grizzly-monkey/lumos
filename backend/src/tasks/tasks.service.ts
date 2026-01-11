@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ActionHistory } from '../actions/entities/action-history.entity';
 import { Database } from '../monitoring/entities/database.entity';
+import { DbLog } from '../monitoring/entities/db-log.entity';
 
 @Injectable()
 export class TasksService {
@@ -14,18 +15,18 @@ export class TasksService {
     private actionHistoryRepository: Repository<ActionHistory>,
     @InjectRepository(Database)
     private databaseRepository: Repository<Database>,
+    @InjectRepository(DbLog)
+    private dbLogRepository: Repository<DbLog>,
   ) {}
 
-  /**
-   * Runs every minute to simulate a daily backup verification task.
-   */
+  // ... (Previous methods: handleBackupVerification, handleHealthCheck, handlePerformanceMonitoring, handleConnectionManagement remain unchanged)
   @Cron(CronExpression.EVERY_MINUTE)
   async handleBackupVerification() {
+    // ... (Keep existing logic)
     this.logger.log('Running Daily Task: Backup Verification');
     const databases = await this.databaseRepository.find();
-
     for (const db of databases) {
-      const isSuccess = Math.random() > 0.05; // 95% success rate
+      const isSuccess = Math.random() > 0.05;
       const record = this.actionHistoryRepository.create({
         database: db,
         actionType: 'backup_verification',
@@ -40,18 +41,14 @@ export class TasksService {
     }
   }
 
-  /**
-   * Runs every 45 seconds to simulate a database health check.
-   */
-  @Cron(CronExpression.EVERY_30_SECONDS)
+  @Cron(CronExpression.EVERY_45_SECONDS)
   async handleHealthCheck() {
+    // ... (Keep existing logic)
     this.logger.log('Running Daily Task: Database Health Check');
     const databases = await this.databaseRepository.find();
-
     for (const db of databases) {
-      const isHealthy = Math.random() > 0.02; // 98% success rate
+      const isHealthy = Math.random() > 0.02;
       let description: string;
-
       if (isHealthy) {
         description = `Health check for ${db.name} passed.`;
         if (db.status === 'offline') {
@@ -63,7 +60,6 @@ export class TasksService {
         db.status = 'offline';
         await this.databaseRepository.save(db);
       }
-
       const record = this.actionHistoryRepository.create({
         database: db,
         actionType: 'database_health_check',
@@ -76,14 +72,11 @@ export class TasksService {
     }
   }
 
-  /**
-   * Runs every 30 seconds to simulate performance monitoring.
-   */
   @Cron(CronExpression.EVERY_30_SECONDS)
   async handlePerformanceMonitoring() {
+    // ... (Keep existing logic)
     this.logger.log('Running Daily Task: Performance Monitoring');
     const databases = await this.databaseRepository.find();
-
     for (const db of databases) {
       const slowQueries = Math.floor(Math.random() * 3);
       const isSuccess = slowQueries === 0;
@@ -101,31 +94,24 @@ export class TasksService {
     }
   }
 
-  /**
-   * Runs every 20 seconds to manage connection pools and kill runaway queries.
-   */
-  @Cron(CronExpression.EVERY_30_SECONDS)
+  @Cron(CronExpression.EVERY_20_SECONDS)
   async handleConnectionManagement() {
+    // ... (Keep existing logic)
     this.logger.log('Running Daily Task: Connection Pool Management');
     const databases = await this.databaseRepository.find();
-
     for (const db of databases) {
-      // Simulate detecting a runaway query (10% chance)
       const runawayQueries = Math.random() < 0.1 ? Math.floor(Math.random() * 2) + 1 : 0;
-
       if (runawayQueries > 0) {
-        // Autonomous Action: Kill the query
         const record = this.actionHistoryRepository.create({
           database: db,
           actionType: 'kill_query',
           description: `Auto-killed ${runawayQueries} runaway quer(ies) lasting over 5 minutes.`,
-          executedBy: 'ai_agent', // This is an autonomous action
+          executedBy: 'ai_agent',
           success: true,
           details: { queryId: [1234, 5678].slice(0, runawayQueries) },
         });
         await this.actionHistoryRepository.save(record);
       } else {
-        // Log a routine check if no action was needed
         const record = this.actionHistoryRepository.create({
           database: db,
           actionType: 'connection_pool_check',
@@ -135,6 +121,55 @@ export class TasksService {
         });
         await this.actionHistoryRepository.save(record);
       }
+    }
+  }
+
+  /**
+   * Runs every 60 seconds to analyze MariaDB logs from the db_logs table.
+   */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async handleLogAnalysis() {
+    this.logger.log('Running Daily Task: Log Analysis');
+    const databases = await this.databaseRepository.find();
+
+    for (const db of databases) {
+      // Fetch the most recent log entry for this database
+      const lastLog = await this.dbLogRepository.findOne({
+        where: { database: { id: db.id } },
+        order: { eventTime: 'DESC' },
+      });
+
+      let description: string;
+      let success: boolean;
+
+      if (lastLog) {
+        // Simple keyword analysis of the log entry
+        const logContent = `${lastLog.commandType} ${lastLog.argument}`.toLowerCase();
+        
+        if (logContent.includes('error') || logContent.includes('deadlock') || logContent.includes('denied') || logContent.includes('full')) {
+          description = `Log analysis found critical issue: "${lastLog.argument.substring(0, 100)}..."`;
+          success = false;
+        } else if (logContent.includes('duration') && logContent.includes('sec')) {
+           description = `Log analysis found slow query: "${lastLog.argument.substring(0, 100)}..."`;
+           success = false; // Treat slow query as a warning
+        } else {
+          description = `Log analysis for ${db.name} completed. No critical errors found in recent logs.`;
+          success = true;
+        }
+      } else {
+        description = `Log analysis for ${db.name} completed. No recent log entries found.`;
+        success = true;
+      }
+
+      const record = this.actionHistoryRepository.create({
+        database: db,
+        actionType: 'log_analysis',
+        description,
+        executedBy: 'scheduled_task',
+        success,
+        details: lastLog ? { logId: lastLog.threadId, type: lastLog.commandType } : {},
+      });
+      await this.actionHistoryRepository.save(record);
     }
   }
 }
