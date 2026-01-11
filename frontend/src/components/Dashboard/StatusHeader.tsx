@@ -15,7 +15,7 @@ export const StatusHeader: React.FC<StatusHeaderProps> = ({ isConnected }) => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Lumos</h1>
           <p className="text-sm text-muted-foreground">
-            Illuminating and Auto Lighting the dark corners of your database.
+            Auto illuminating dark corners of your database.
           </p>
         </div>
       </div>

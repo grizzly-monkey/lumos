@@ -15,10 +15,11 @@ services:
       - ./backend/scripts/setup-database.sql:/docker-entrypoint-initdb.d/init.sql
     command: --plugin-load-add=vector
     healthcheck:
-      test: [ "CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-p'rootpassword'" ]
+      test: [ "CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "--password=rootpassword" ]
       interval: 5s
       timeout: 3s
       retries: 10
+
   mariadb-mcp:
     build: mcp/.
     container_name: mariadb-mcp
@@ -28,5 +29,6 @@ services:
     depends_on:
       mariadb:
         condition: service_healthy
+
 volumes:
   mariadb_data:
