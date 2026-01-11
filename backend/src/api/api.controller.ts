@@ -37,4 +37,9 @@ export class ApiController {
   getActionHistory() {
     return this.apiService.getActionHistory();
   }
+
+  @Get('summary')
+  getAgentSummary() {
+    return this.apiService.getAgentSummary();
+  }
 }

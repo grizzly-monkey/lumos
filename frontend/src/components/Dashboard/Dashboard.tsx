@@ -7,7 +7,8 @@ import { MetricsCards } from './MetricsCards';
 import { IncidentCards } from './IncidentCards';
 import { ActivityReport } from './ActivityReport';
 import { AutonomousActions } from './AutonomousActions';
-import { PerformanceCharts } from './PerformanceCharts'; // Ensure it's imported
+import { PerformanceCharts } from './PerformanceCharts';
+import { AgentSummary } from './AgentSummary'; // Import the new component
 import axios from 'axios';
 
 export const Dashboard: React.FC = () => {
@@ -79,10 +80,12 @@ export const Dashboard: React.FC = () => {
     <div className="container mx-auto p-4">
       <StatusHeader isConnected={isConnected} />
       <div className="space-y-6 mt-4">
+        {/* Add the AgentSummary at the top */}
+        <AgentSummary />
+        
         <DatabaseGrid databases={databases} />
         <MetricsCards metrics={metrics} />
 
-        {/* Re-introduce the PerformanceCharts component */}
         <div className="grid grid-cols-1 gap-6">
           <PerformanceCharts metrics={metrics} />
         </div>

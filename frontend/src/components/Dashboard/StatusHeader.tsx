@@ -1,37 +1,36 @@
 import React from 'react';
-import { useWebSocket } from '../../hooks/useWebSocket';
+import { Lightbulb } from 'lucide-react';
 
 interface StatusHeaderProps {
   isConnected: boolean;
 }
 
 export const StatusHeader: React.FC<StatusHeaderProps> = ({ isConnected }) => {
-  const { socket } = useWebSocket();
-
-  const runDemo = (scenario: string) => {
-    if (socket) {
-      socket.emit('trigger_demo', { scenario });
-    }
-  };
-
   return (
-    <div className="flex justify-between items-center mb-4">
-      <h1 className="text-2xl font-bold">NightWatch Dashboard</h1>
+    <div className="flex justify-between items-center mb-6 bg-card p-4 rounded-lg border shadow-sm">
+      <div className="flex items-center space-x-3">
+        <div className="p-2 bg-yellow-500/10 rounded-full">
+          <Lightbulb className="h-8 w-8 text-yellow-500" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Lumos</h1>
+          <p className="text-sm text-muted-foreground">
+            Illuminating and Auto Lighting the dark corners of your database.
+          </p>
+        </div>
+      </div>
+      
       <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 px-3 py-1 bg-background rounded-full border">
           <div
-            className={`h-3 w-3 rounded-full ${
-              isConnected ? 'bg-green-500' : 'bg-red-500'
+            className={`h-2.5 w-2.5 rounded-full ${
+              isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
             }`}
           />
-          <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
+          <span className="text-xs font-medium">
+            {isConnected ? 'System Online' : 'Disconnected'}
+          </span>
         </div>
-        <button
-          onClick={() => runDemo('slow_query')}
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-        >
-          🎬 Run Slow Query Demo
-        </button>
       </div>
     </div>
   );
