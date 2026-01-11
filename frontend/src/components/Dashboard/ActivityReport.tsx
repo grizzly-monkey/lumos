@@ -46,10 +46,13 @@ export const ActivityReport: React.FC = () => {
         {isLoading ? (
           <p>Loading report...</p>
         ) : (
-          <div className="space-y-6">
+          // Add a container with fixed height and vertical scroll
+          <div className="h-[450px] overflow-y-auto pr-4 space-y-6">
             {Object.entries(groupedActions).map(([date, actions]) => (
               <div key={date}>
-                <h3 className="text-lg font-semibold mb-2">{date}</h3>
+                <h3 className="text-lg font-semibold mb-2 sticky top-0 bg-card py-2">
+                  {date}
+                </h3>
                 <ul className="space-y-4">
                   {actions.map((action) => (
                     <li key={action.id} className="flex items-center space-x-3">

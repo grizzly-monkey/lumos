@@ -5,7 +5,7 @@ import { StatusHeader } from './StatusHeader';
 import { DatabaseGrid } from './DatabaseGrid';
 import { MetricsCards } from './MetricsCards';
 import { IncidentCards } from './IncidentCards';
-import { ActivityReport } from './ActivityReport'; // Import the new component
+import { ActivityReport } from './ActivityReport';
 import { PerformanceCharts } from './PerformanceCharts';
 import axios from 'axios';
 
@@ -16,15 +16,23 @@ export const Dashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const fetchDatabases = async () => {
+    try {
+      const response = await axios.get('/api/databases');
+      setDatabases(response.data);
+    } catch (error) {
+      console.error('Failed to fetch databases:', error);
+    }
+  };
+
   useEffect(() => {
     const fetchInitialData = async () => {
+      setIsLoading(true);
       try {
-        const [dbRes, incRes] = await Promise.all([
-          axios.get('/api/databases'),
-          axios.get('/api/incidents'),
+        await Promise.all([
+          fetchDatabases(),
+          axios.get('/api/incidents').then((res) => setIncidents(res.data)),
         ]);
-        setDatabases(dbRes.data);
-        setIncidents(incRes.data);
       } catch (error) {
         console.error('Error fetching initial data:', error);
       } finally {
@@ -33,6 +41,13 @@ export const Dashboard: React.FC = () => {
     };
 
     fetchInitialData();
+
+    // Set up a poller to refresh the database list every 30 seconds
+    const dbPoller = setInterval(fetchDatabases, 30000);
+
+    return () => {
+      clearInterval(dbPoller);
+    };
   }, []);
 
   useEffect(() => {
@@ -73,12 +88,14 @@ export const Dashboard: React.FC = () => {
           <div className="lg:col-span-2">
             <PerformanceCharts metrics={metrics} />
           </div>
-          {/* Replace ActivityFeed with ActivityReport */}
           <ActivityReport />
         </div>
         <div>
           <h2 className="text-2xl font-bold mb-4">Recent Incidents</h2>
-          <IncidentCards incidents={incidents} />
+          {/* Add a container with fixed height and vertical scroll */}
+          <div className="h-[450px] overflow-y-auto pr-4">
+            <IncidentCards incidents={incidents} />
+          </div>
         </div>
       </div>
     </div>
