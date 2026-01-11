@@ -14,6 +14,19 @@ services:
       - mariadb_data:/var/lib/mysql
       - ./backend/scripts/setup-database.sql:/docker-entrypoint-initdb.d/init.sql
     command: --plugin-load-add=vector
-
+    healthcheck:
+      test: [ "CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-p'rootpassword'" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  mariadb-mcp:
+    build: mcp/.
+    container_name: mariadb-mcp
+    env_file: mcp/.env
+    ports:
+      - "9001:9001"
+    depends_on:
+      mariadb:
+        condition: service_healthy
 volumes:
   mariadb_data:
