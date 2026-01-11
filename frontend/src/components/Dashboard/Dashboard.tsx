@@ -2,12 +2,10 @@ import { useState, useEffect } from 'react';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import type { Database, Incident, Metric } from '../../types';
 import { StatusHeader } from './StatusHeader';
-import { DatabaseGrid } from './DatabaseGrid';
 import { MetricsCards } from './MetricsCards';
 import { IncidentCards } from './IncidentCards';
 import { ActivityReport } from './ActivityReport';
 import { AutonomousActions } from './AutonomousActions';
-import { PerformanceCharts } from './PerformanceCharts';
 import { AgentSummary } from './AgentSummary';
 import axios from 'axios';
 
@@ -52,7 +50,12 @@ export const Dashboard: React.FC = () => {
     if (!socket) return;
 
     const handleMetricsUpdate = (data: Metric) => {
-      setMetrics((prev) => [data, ...prev.slice(0, 99)]);
+      // Keep a larger history for the sparklines (e.g., last 50 points per DB)
+      setMetrics((prev) => {
+        const newMetrics = [data, ...prev];
+        // Optional: Prune old metrics to prevent memory leaks if running for days
+        return newMetrics.slice(0, 500); 
+      });
     };
 
     const handleIncidentDetected = (data: Incident) => {
@@ -82,12 +85,8 @@ export const Dashboard: React.FC = () => {
       <div className="space-y-6 mt-4">
         <AgentSummary />
         
-        <DatabaseGrid databases={databases} />
-        <MetricsCards metrics={metrics} />
-
-        <div className="grid grid-cols-1 gap-6">
-          <PerformanceCharts metrics={metrics} />
-        </div>
+        {/* New MetricsCards replaces DatabaseGrid and PerformanceCharts */}
+        <MetricsCards metrics={metrics} databases={databases} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <AutonomousActions />
