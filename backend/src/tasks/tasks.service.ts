@@ -19,10 +19,8 @@ export class TasksService {
     private dbLogRepository: Repository<DbLog>,
   ) {}
 
-  // ... (Previous methods: handleBackupVerification, handleHealthCheck, handlePerformanceMonitoring, handleConnectionManagement, handleLogAnalysis remain unchanged)
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_30_SECONDS)
   async handleBackupVerification() {
-    // ... (Keep existing logic)
     this.logger.log('Running Daily Task: Backup Verification');
     const databases = await this.databaseRepository.find();
     for (const db of databases) {
@@ -43,7 +41,6 @@ export class TasksService {
 
   @Cron(CronExpression.EVERY_30_SECONDS)
   async handleHealthCheck() {
-    // ... (Keep existing logic)
     this.logger.log('Running Daily Task: Database Health Check');
     const databases = await this.databaseRepository.find();
     for (const db of databases) {
@@ -74,7 +71,6 @@ export class TasksService {
 
   @Cron(CronExpression.EVERY_30_SECONDS)
   async handlePerformanceMonitoring() {
-    // ... (Keep existing logic)
     this.logger.log('Running Daily Task: Performance Monitoring');
     const databases = await this.databaseRepository.find();
     for (const db of databases) {
@@ -96,7 +92,6 @@ export class TasksService {
 
   @Cron(CronExpression.EVERY_30_SECONDS)
   async handleConnectionManagement() {
-    // ... (Keep existing logic)
     this.logger.log('Running Daily Task: Connection Pool Management');
     const databases = await this.databaseRepository.find();
     for (const db of databases) {
@@ -124,9 +119,8 @@ export class TasksService {
     }
   }
 
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_30_SECONDS)
   async handleLogAnalysis() {
-    // ... (Keep existing logic)
     this.logger.log('Running Daily Task: Log Analysis');
     const databases = await this.databaseRepository.find();
     for (const db of databases) {
@@ -164,32 +158,24 @@ export class TasksService {
     }
   }
 
-  /**
-   * Runs every 40 seconds to monitor storage capacity and auto-clean logs if needed.
-   */
   @Cron(CronExpression.EVERY_30_SECONDS)
   async handleStorageMonitoring() {
     this.logger.log('Running Daily Task: Storage Capacity Monitoring');
     const databases = await this.databaseRepository.find();
-
     for (const db of databases) {
-      // Simulate disk usage. 10% chance of being critical (>90%)
       const diskUsage = Math.random() < 0.1 ? 90 + Math.random() * 9 : 40 + Math.random() * 30;
-      
       if (diskUsage > 90) {
-        // Autonomous Action: Clear logs
-        const freedSpace = (Math.random() * 5 + 1).toFixed(1); // 1.0 to 6.0 GB
+        const freedSpace = (Math.random() * 5 + 1).toFixed(1);
         const record = this.actionHistoryRepository.create({
           database: db,
           actionType: 'clear_logs',
           description: `Disk usage critical (${diskUsage.toFixed(1)}%). Auto-archived and purged ${freedSpace}GB of old transaction logs.`,
-          executedBy: 'ai_agent', // Autonomous action
+          executedBy: 'ai_agent',
           success: true,
           details: { initialUsage: diskUsage, freedGb: freedSpace },
         });
         await this.actionHistoryRepository.save(record);
       } else {
-        // Routine check
         const record = this.actionHistoryRepository.create({
           database: db,
           actionType: 'storage_check',
@@ -200,6 +186,130 @@ export class TasksService {
         });
         await this.actionHistoryRepository.save(record);
       }
+    }
+  }
+
+  @Cron(CronExpression.EVERY_30_SECONDS)
+  async handleDeadlockDetection() {
+    this.logger.log('Running Daily Task: Deadlock Detection');
+    const databases = await this.databaseRepository.find();
+    for (const db of databases) {
+      const hasDeadlock = Math.random() < 0.05;
+      if (hasDeadlock) {
+        const record = this.actionHistoryRepository.create({
+          database: db,
+          actionType: 'deadlock_detected',
+          description: `Deadlock detected between transaction 1023 and 1045. Suggest reviewing index on 'orders' table to reduce lock contention.`,
+          executedBy: 'scheduled_task',
+          success: false,
+          details: { victimTrx: 1023, winnerTrx: 1045 },
+        });
+        await this.actionHistoryRepository.save(record);
+      } else {
+        const record = this.actionHistoryRepository.create({
+          database: db,
+          actionType: 'deadlock_check',
+          description: `Deadlock monitor scan completed. No deadlocks found.`,
+          executedBy: 'scheduled_task',
+          success: true,
+        });
+        await this.actionHistoryRepository.save(record);
+      }
+    }
+  }
+
+  @Cron(CronExpression.EVERY_30_SECONDS)
+  async handleIndexMaintenance() {
+    this.logger.log('Running Daily Task: Index Maintenance');
+    const databases = await this.databaseRepository.find();
+    for (const db of databases) {
+      const fragmentation = Math.random() < 0.1 ? 30 + Math.random() * 40 : Math.random() * 10;
+      if (fragmentation > 30) {
+        const record = this.actionHistoryRepository.create({
+          database: db,
+          actionType: 'rebuild_index',
+          description: `High fragmentation detected (${fragmentation.toFixed(1)}%) on table 'orders'. Auto-rebuilt index 'idx_customer_id'.`,
+          executedBy: 'ai_agent',
+          success: true,
+          details: { initialFragmentation: fragmentation, table: 'orders', index: 'idx_customer_id' },
+        });
+        await this.actionHistoryRepository.save(record);
+      } else {
+        const record = this.actionHistoryRepository.create({
+          database: db,
+          actionType: 'index_check',
+          description: `Index maintenance check passed. Max fragmentation at ${fragmentation.toFixed(1)}%.`,
+          executedBy: 'scheduled_task',
+          success: true,
+          details: { maxFragmentation: fragmentation },
+        });
+        await this.actionHistoryRepository.save(record);
+      }
+    }
+  }
+
+  @Cron(CronExpression.EVERY_30_SECONDS)
+  async handleStatisticsUpdates() {
+    this.logger.log('Running Daily Task: Statistics Updates');
+    const databases = await this.databaseRepository.find();
+    for (const db of databases) {
+      const statsAgeDays = Math.random() < 0.1 ? 3 + Math.random() * 5 : Math.random() * 2;
+      if (statsAgeDays > 3) {
+        const record = this.actionHistoryRepository.create({
+          database: db,
+          actionType: 'update_statistics',
+          description: `Table statistics for 'products' are stale (${statsAgeDays.toFixed(1)} days old). Auto-running ANALYZE TABLE.`,
+          executedBy: 'ai_agent',
+          success: true,
+          details: { table: 'products', ageDays: statsAgeDays },
+        });
+        await this.actionHistoryRepository.save(record);
+      } else {
+        const record = this.actionHistoryRepository.create({
+          database: db,
+          actionType: 'statistics_check',
+          description: `Statistics update check passed. Stats are fresh (${statsAgeDays.toFixed(1)} days old).`,
+          executedBy: 'scheduled_task',
+          success: true,
+          details: { maxAgeDays: statsAgeDays },
+        });
+        await this.actionHistoryRepository.save(record);
+      }
+    }
+  }
+
+  /**
+   * Runs every 30 seconds to check HA/DR status (Replication Lag).
+   */
+  @Cron(CronExpression.EVERY_30_SECONDS)
+  async handleHaDrStatus() {
+    this.logger.log('Running Daily Task: HA/DR Status Check');
+    const databases = await this.databaseRepository.find();
+
+    for (const db of databases) {
+      // Simulate replication lag. 5% chance of high lag (> 10s)
+      const replicationLag = Math.random() < 0.05 ? 10 + Math.random() * 20 : Math.random() * 2;
+      
+      let description: string;
+      let success: boolean;
+
+      if (replicationLag > 10) {
+        description = `High replication lag detected (${replicationLag.toFixed(1)}s) on secondary node. HA status degraded.`;
+        success = false;
+      } else {
+        description = `HA/DR status healthy. Replication lag is low (${replicationLag.toFixed(1)}s).`;
+        success = true;
+      }
+
+      const record = this.actionHistoryRepository.create({
+        database: db,
+        actionType: 'ha_dr_check',
+        description,
+        executedBy: 'scheduled_task',
+        success,
+        details: { lagSeconds: replicationLag },
+      });
+      await this.actionHistoryRepository.save(record);
     }
   }
 }
