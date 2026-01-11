@@ -1,0 +1,19 @@
+services:
+  mariadb:
+    image: mariadb:11.7
+    container_name: nightwatch-mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpassword
+      MARIADB_DATABASE: ${DB_NAME:-nightwatch_db}
+      MARIADB_USER: ${DB_USER:-nightwatch}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-nightwatch123}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./backend/scripts/setup-database.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --plugin-load-add=vector
+
+volumes:
+  mariadb_data:
