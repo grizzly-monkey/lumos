@@ -19,7 +19,7 @@ export class TasksService {
     private dbLogRepository: Repository<DbLog>,
   ) {}
 
-  // ... (Previous methods: handleBackupVerification, handleHealthCheck, handlePerformanceMonitoring, handleConnectionManagement remain unchanged)
+  // ... (Previous methods: handleBackupVerification, handleHealthCheck, handlePerformanceMonitoring, handleConnectionManagement, handleLogAnalysis remain unchanged)
   @Cron(CronExpression.EVERY_MINUTE)
   async handleBackupVerification() {
     // ... (Keep existing logic)
@@ -41,7 +41,7 @@ export class TasksService {
     }
   }
 
-  @Cron(CronExpression.EVERY_45_SECONDS)
+  @Cron(CronExpression.EVERY_30_SECONDS)
   async handleHealthCheck() {
     // ... (Keep existing logic)
     this.logger.log('Running Daily Task: Database Health Check');
@@ -94,7 +94,7 @@ export class TasksService {
     }
   }
 
-  @Cron(CronExpression.EVERY_20_SECONDS)
+  @Cron(CronExpression.EVERY_30_SECONDS)
   async handleConnectionManagement() {
     // ... (Keep existing logic)
     this.logger.log('Running Daily Task: Connection Pool Management');
@@ -124,34 +124,26 @@ export class TasksService {
     }
   }
 
-  /**
-   * Runs every 60 seconds to analyze MariaDB logs from the db_logs table.
-   */
   @Cron(CronExpression.EVERY_MINUTE)
   async handleLogAnalysis() {
+    // ... (Keep existing logic)
     this.logger.log('Running Daily Task: Log Analysis');
     const databases = await this.databaseRepository.find();
-
     for (const db of databases) {
-      // Fetch the most recent log entry for this database
       const lastLog = await this.dbLogRepository.findOne({
         where: { database: { id: db.id } },
         order: { eventTime: 'DESC' },
       });
-
       let description: string;
       let success: boolean;
-
       if (lastLog) {
-        // Simple keyword analysis of the log entry
         const logContent = `${lastLog.commandType} ${lastLog.argument}`.toLowerCase();
-        
         if (logContent.includes('error') || logContent.includes('deadlock') || logContent.includes('denied') || logContent.includes('full')) {
           description = `Log analysis found critical issue: "${lastLog.argument.substring(0, 100)}..."`;
           success = false;
         } else if (logContent.includes('duration') && logContent.includes('sec')) {
            description = `Log analysis found slow query: "${lastLog.argument.substring(0, 100)}..."`;
-           success = false; // Treat slow query as a warning
+           success = false;
         } else {
           description = `Log analysis for ${db.name} completed. No critical errors found in recent logs.`;
           success = true;
@@ -160,7 +152,6 @@ export class TasksService {
         description = `Log analysis for ${db.name} completed. No recent log entries found.`;
         success = true;
       }
-
       const record = this.actionHistoryRepository.create({
         database: db,
         actionType: 'log_analysis',
@@ -170,6 +161,45 @@ export class TasksService {
         details: lastLog ? { logId: lastLog.threadId, type: lastLog.commandType } : {},
       });
       await this.actionHistoryRepository.save(record);
+    }
+  }
+
+  /**
+   * Runs every 40 seconds to monitor storage capacity and auto-clean logs if needed.
+   */
+  @Cron(CronExpression.EVERY_30_SECONDS)
+  async handleStorageMonitoring() {
+    this.logger.log('Running Daily Task: Storage Capacity Monitoring');
+    const databases = await this.databaseRepository.find();
+
+    for (const db of databases) {
+      // Simulate disk usage. 10% chance of being critical (>90%)
+      const diskUsage = Math.random() < 0.1 ? 90 + Math.random() * 9 : 40 + Math.random() * 30;
+      
+      if (diskUsage > 90) {
+        // Autonomous Action: Clear logs
+        const freedSpace = (Math.random() * 5 + 1).toFixed(1); // 1.0 to 6.0 GB
+        const record = this.actionHistoryRepository.create({
+          database: db,
+          actionType: 'clear_logs',
+          description: `Disk usage critical (${diskUsage.toFixed(1)}%). Auto-archived and purged ${freedSpace}GB of old transaction logs.`,
+          executedBy: 'ai_agent', // Autonomous action
+          success: true,
+          details: { initialUsage: diskUsage, freedGb: freedSpace },
+        });
+        await this.actionHistoryRepository.save(record);
+      } else {
+        // Routine check
+        const record = this.actionHistoryRepository.create({
+          database: db,
+          actionType: 'storage_check',
+          description: `Storage capacity check passed. Disk usage at ${diskUsage.toFixed(1)}%.`,
+          executedBy: 'scheduled_task',
+          success: true,
+          details: { usagePercent: diskUsage },
+        });
+        await this.actionHistoryRepository.save(record);
+      }
     }
   }
 }
