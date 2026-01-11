@@ -1,50 +1,47 @@
-// scripts/seed.ts
-import mariadb from 'mariadb';
-import { config } from 'dotenv';
+import { createConnection } from 'typeorm';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as dotenv from 'dotenv';
 
-const BATCH_SIZE = 1000;
-
-// (Include helper functions for generating random data as in the original prompt)
-// e.g., generateRealisticTimestamp, createMetric, createIncident, etc.
+// Load environment variables
+dotenv.config();
 
 async function seed() {
-  config({ path: '.env' });
-
-  const pool = mariadb.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    connectionLimit: 5,
+  const connection = await createConnection({
+    type: 'mariadb',
+    host: process.env.DB_HOST || 'localhost',
+    port: Number(process.env.DB_PORT) || 3306,
+    username: process.env.DB_USER || 'nightwatch',
+    password: process.env.DB_PASSWORD || 'nightwatch123',
+    database: process.env.DB_NAME || 'nightwatch_db',
+    multipleStatements: true, // Allow multiple SQL statements in one query
   });
 
-  let conn;
-  try {
-    conn = await pool.getConnection();
-    console.log('✅ Database connection successful.');
+  console.log('🌱 Connected to database. Starting seed process...');
 
-    // Check and seed databases
-    const [dbRows] = await conn.query('SELECT COUNT(*) as count FROM databases');
-    if (dbRows.count === 0) {
-      console.log('Seeding databases...');
-      const dbNames = ['Orders', 'Products', 'Users', 'Analytics'];
-      await conn.batch('INSERT INTO databases (name) VALUES (?)', dbNames.map(name => [name]));
-      console.log(`✅ Inserted ${dbNames.length} databases.`);
+  const scripts = [
+    'setup-database.sql',
+    'seed-data.sql',
+    'seed-logs.sql'
+  ];
+
+  for (const scriptName of scripts) {
+    const filePath = path.join(__dirname, scriptName);
+    if (fs.existsSync(filePath)) {
+      console.log(`\n📄 Executing ${scriptName}...`);
+      const sql = fs.readFileSync(filePath, 'utf8');
+      await connection.query(sql);
+      console.log(`✅ ${scriptName} executed successfully.`);
     } else {
-      console.log('☑️ Databases table already seeded.');
+      console.warn(`⚠️ Warning: ${scriptName} not found. Skipping.`);
     }
-    
-    // ... (Add similar logic for incidents, metrics, and actions) ...
-    // Use batch insertion for metrics for performance.
-    
-    console.log('🎉 Sample data loading complete!');
-
-  } catch (err) {
-    console.error('❌ Error during seeding:', err);
-  } finally {
-    if (conn) conn.release();
-    await pool.end();
   }
+
+  console.log('\n✨ Database setup and seeding completed!');
+  await connection.close();
 }
 
-seed();
+seed().catch((error) => {
+  console.error('❌ Seeding failed:', error);
+  process.exit(1);
+});
