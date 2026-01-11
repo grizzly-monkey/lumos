@@ -21,17 +21,23 @@ export class TasksService {
     private eventsGateway: EventsGateway,
   ) {}
 
-  /**
-   * Helper to save action history and broadcast the event in real-time.
-   */
-  private async logAction(data: Partial<ActionHistory>) {
-    const record = this.actionHistoryRepository.create(data);
+  private async logAction(data: Partial<ActionHistory>): Promise<ActionHistory | null> {
+    const record = this.actionHistoryRepository.create({
+      ...data,
+      timestamp: new Date(),
+    });
     const savedRecord = await this.actionHistoryRepository.save(record);
-    
-    // Broadcast the new action to the frontend immediately
-    this.eventsGateway.broadcast('action_logged', savedRecord);
-    
-    return savedRecord;
+
+    const fullRecord = await this.actionHistoryRepository.findOne({
+      where: { id: savedRecord.id },
+      relations: ['relatedEvent', 'database'],
+    });
+
+    if (fullRecord) {
+      this.eventsGateway.broadcast('action_logged', fullRecord);
+    }
+
+    return fullRecord;
   }
 
   @Cron(CronExpression.EVERY_30_SECONDS)
@@ -109,14 +115,25 @@ export class TasksService {
     for (const db of databases) {
       const runawayQueries = Math.random() < 0.1 ? Math.floor(Math.random() * 2) + 1 : 0;
       if (runawayQueries > 0) {
-        await this.logAction({
+        const detectionEvent = await this.logAction({
           database: db,
-          actionType: 'kill_query',
-          description: `Auto-killed ${runawayQueries} runaway quer(ies) lasting over 5 minutes.`,
-          executedBy: 'ai_agent',
-          success: true,
-          details: { queryId: [1234, 5678].slice(0, runawayQueries) },
+          actionType: 'connection_pool_check',
+          description: `Warning: Detected ${runawayQueries} runaway quer(ies) lasting over 5 minutes.`,
+          executedBy: 'scheduled_task',
+          success: false,
         });
+
+        if (detectionEvent) {
+          await this.logAction({
+            database: db,
+            actionType: 'kill_query',
+            description: `Auto-killed ${runawayQueries} runaway quer(ies). Connection pool stabilized.`,
+            executedBy: 'ai_agent',
+            success: true,
+            details: { queryId: [1234, 5678].slice(0, runawayQueries) },
+            relatedEvent: detectionEvent,
+          });
+        }
       } else {
         await this.logAction({
           database: db,
@@ -142,12 +159,20 @@ export class TasksService {
       let success: boolean;
       if (lastLog) {
         const logContent = `${lastLog.commandType} ${lastLog.argument}`.toLowerCase();
-        if (logContent.includes('error') || logContent.includes('deadlock') || logContent.includes('denied') || logContent.includes('full')) {
-          description = `Log analysis found critical issue: "${lastLog.argument.substring(0, 100)}..."`;
+        if (
+          logContent.includes('error') ||
+          logContent.includes('deadlock') ||
+          logContent.includes('denied') ||
+          logContent.includes('full')
+        ) {
+          description = `Log analysis found critical issue: "${lastLog.argument.substring(
+            0,
+            100,
+          )}..."`;
           success = false;
         } else if (logContent.includes('duration') && logContent.includes('sec')) {
-           description = `Log analysis found slow query: "${lastLog.argument.substring(0, 100)}..."`;
-           success = false;
+          description = `Log analysis found slow query: "${lastLog.argument.substring(0, 100)}..."`;
+          success = false;
         } else {
           description = `Log analysis for ${db.name} completed. No critical errors found in recent logs.`;
           success = true;
@@ -174,15 +199,28 @@ export class TasksService {
     for (const db of databases) {
       const diskUsage = Math.random() < 0.1 ? 90 + Math.random() * 9 : 40 + Math.random() * 30;
       if (diskUsage > 90) {
-        const freedSpace = (Math.random() * 5 + 1).toFixed(1);
-        await this.logAction({
+        const detectionEvent = await this.logAction({
           database: db,
-          actionType: 'clear_logs',
-          description: `Disk usage critical (${diskUsage.toFixed(1)}%). Auto-archived and purged ${freedSpace}GB of old transaction logs.`,
-          executedBy: 'ai_agent',
-          success: true,
-          details: { initialUsage: diskUsage, freedGb: freedSpace },
+          actionType: 'storage_check',
+          description: `Critical Warning: Disk usage at ${diskUsage.toFixed(
+            1,
+          )}%. Immediate cleanup required.`,
+          executedBy: 'scheduled_task',
+          success: false,
         });
+
+        if (detectionEvent) {
+          const freedSpace = (Math.random() * 5 + 1).toFixed(1);
+          await this.logAction({
+            database: db,
+            actionType: 'clear_logs',
+            description: `Auto-archived and purged ${freedSpace}GB of old transaction logs. Disk usage normalized.`,
+            executedBy: 'ai_agent',
+            success: true,
+            details: { initialUsage: diskUsage, freedGb: freedSpace },
+            relatedEvent: detectionEvent,
+          });
+        }
       } else {
         await this.logAction({
           database: db,
@@ -206,7 +244,7 @@ export class TasksService {
         await this.logAction({
           database: db,
           actionType: 'deadlock_detected',
-          description: `Deadlock detected between transaction 1023 and 1045. Suggest reviewing index on 'orders' table to reduce lock contention.`,
+          description: `Deadlock detected between transaction 1023 and 1045. Suggest reviewing index on 'orders' table.`,
           executedBy: 'scheduled_task',
           success: false,
           details: { victimTrx: 1023, winnerTrx: 1045 },
@@ -230,19 +268,38 @@ export class TasksService {
     for (const db of databases) {
       const fragmentation = Math.random() < 0.1 ? 30 + Math.random() * 40 : Math.random() * 10;
       if (fragmentation > 30) {
-        await this.logAction({
+        const detectionEvent = await this.logAction({
           database: db,
-          actionType: 'rebuild_index',
-          description: `High fragmentation detected (${fragmentation.toFixed(1)}%) on table 'orders'. Auto-rebuilt index 'idx_customer_id'.`,
-          executedBy: 'ai_agent',
-          success: true,
-          details: { initialFragmentation: fragmentation, table: 'orders', index: 'idx_customer_id' },
+          actionType: 'index_check',
+          description: `Warning: High fragmentation detected (${fragmentation.toFixed(
+            1,
+          )}%) on table 'orders'.`,
+          executedBy: 'scheduled_task',
+          success: false,
         });
+
+        if (detectionEvent) {
+          await this.logAction({
+            database: db,
+            actionType: 'rebuild_index',
+            description: `Auto-rebuilt index 'idx_customer_id'. Fragmentation reduced to < 1%.`,
+            executedBy: 'ai_agent',
+            success: true,
+            details: {
+              initialFragmentation: fragmentation,
+              table: 'orders',
+              index: 'idx_customer_id',
+            },
+            relatedEvent: detectionEvent,
+          });
+        }
       } else {
         await this.logAction({
           database: db,
           actionType: 'index_check',
-          description: `Index maintenance check passed. Max fragmentation at ${fragmentation.toFixed(1)}%.`,
+          description: `Index maintenance check passed. Max fragmentation at ${fragmentation.toFixed(
+            1,
+          )}%.`,
           executedBy: 'scheduled_task',
           success: true,
           details: { maxFragmentation: fragmentation },
@@ -258,19 +315,34 @@ export class TasksService {
     for (const db of databases) {
       const statsAgeDays = Math.random() < 0.1 ? 3 + Math.random() * 5 : Math.random() * 2;
       if (statsAgeDays > 3) {
-        await this.logAction({
+        const detectionEvent = await this.logAction({
           database: db,
-          actionType: 'update_statistics',
-          description: `Table statistics for 'products' are stale (${statsAgeDays.toFixed(1)} days old). Auto-running ANALYZE TABLE.`,
-          executedBy: 'ai_agent',
-          success: true,
-          details: { table: 'products', ageDays: statsAgeDays },
+          actionType: 'statistics_check',
+          description: `Warning: Table statistics for 'products' are stale (${statsAgeDays.toFixed(
+            1,
+          )} days old).`,
+          executedBy: 'scheduled_task',
+          success: false,
         });
+
+        if (detectionEvent) {
+          await this.logAction({
+            database: db,
+            actionType: 'update_statistics',
+            description: `Auto-ran ANALYZE TABLE on 'products'. Statistics updated successfully.`,
+            executedBy: 'ai_agent',
+            success: true,
+            details: { table: 'products', ageDays: statsAgeDays },
+            relatedEvent: detectionEvent,
+          });
+        }
       } else {
         await this.logAction({
           database: db,
           actionType: 'statistics_check',
-          description: `Statistics update check passed. Stats are fresh (${statsAgeDays.toFixed(1)} days old).`,
+          description: `Statistics update check passed. Stats are fresh (${statsAgeDays.toFixed(
+            1,
+          )} days old).`,
           executedBy: 'scheduled_task',
           success: true,
           details: { maxAgeDays: statsAgeDays },
@@ -288,10 +360,14 @@ export class TasksService {
       let description: string;
       let success: boolean;
       if (replicationLag > 10) {
-        description = `High replication lag detected (${replicationLag.toFixed(1)}s) on secondary node. HA status degraded.`;
+        description = `High replication lag detected (${replicationLag.toFixed(
+          1,
+        )}s) on secondary node. HA status degraded.`;
         success = false;
       } else {
-        description = `HA/DR status healthy. Replication lag is low (${replicationLag.toFixed(1)}s).`;
+        description = `HA/DR status healthy. Replication lag is low (${replicationLag.toFixed(
+          1,
+        )}s).`;
         success = true;
       }
       await this.logAction({

@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  OneToOne,
 } from 'typeorm';
 import { Database } from '../../monitoring/entities/database.entity';
 
@@ -39,4 +40,9 @@ export class ActionHistory {
 
   @Column({ type: 'json', nullable: true })
   details: any;
+
+  // Allow null for the relation property to match the database and TypeORM behavior
+  @OneToOne(() => ActionHistory, { nullable: true })
+  @JoinColumn({ name: 'related_event_id' })
+  relatedEvent: ActionHistory | null;
 }

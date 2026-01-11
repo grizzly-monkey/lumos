@@ -5,10 +5,9 @@ export interface Database {
   createdAt: string;
 }
 
-// Corrected to use camelCase to match the API response
 export interface Metric {
   id: number;
-  database_id: number; // This is often a foreign key, keeping as is.
+  database_id: number;
   timestamp: string;
   cpuPercent: number;
   memoryPercent: number;
@@ -20,7 +19,6 @@ export interface Metric {
   avgQueryTimeMs: number;
 }
 
-// Corrected to use camelCase
 export interface Incident {
   id: number;
   database_id: number;
@@ -33,7 +31,6 @@ export interface Incident {
   resolutionNotes: string | null;
 }
 
-// Corrected to use camelCase
 export interface AgentAction {
   id: number;
   incident_id: number;
@@ -56,4 +53,5 @@ export interface ActionHistory {
   executedBy: string;
   success: boolean;
   details: any;
+  relatedEvent?: ActionHistory; // Added this field
 }

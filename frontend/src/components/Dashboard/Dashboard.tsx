@@ -4,7 +4,7 @@ import type { Database, Incident, Metric } from '../../types';
 import { StatusHeader } from './StatusHeader';
 import { MetricsCards } from './MetricsCards';
 import { IncidentCards } from './IncidentCards';
-import { DatabaseTimeline } from './DatabaseTimeline'; // Import the new component
+import { DatabaseTimeline } from './DatabaseTimeline';
 import { AgentSummary } from './AgentSummary';
 import axios from 'axios';
 
@@ -59,12 +59,21 @@ export const Dashboard: React.FC = () => {
       setIncidents((prev) => [data, ...prev]);
     };
 
+    // Handle incident updates (resolutions)
+    const handleIncidentUpdated = (updatedIncident: Incident) => {
+      setIncidents((prev) => 
+        prev.map((inc) => inc.id === updatedIncident.id ? updatedIncident : inc)
+      );
+    };
+
     socket.on('metrics_update', handleMetricsUpdate);
     socket.on('incident_detected', handleIncidentDetected);
+    socket.on('incident_updated', handleIncidentUpdated);
 
     return () => {
       socket.off('metrics_update', handleMetricsUpdate);
       socket.off('incident_detected', handleIncidentDetected);
+      socket.off('incident_updated', handleIncidentUpdated);
     };
   }, [socket]);
 
@@ -84,7 +93,6 @@ export const Dashboard: React.FC = () => {
         
         <MetricsCards metrics={metrics} databases={databases} />
 
-        {/* New Database Timeline View */}
         <div>
           <h2 className="text-xl font-bold mb-4 text-slate-200">Live Database Activity</h2>
           <DatabaseTimeline databases={databases} />

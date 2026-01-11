@@ -294,3 +294,16 @@ SELECT CONCAT('📉 Baselines: ', COUNT(*)) FROM `baseline_patterns`;
 
 -- Show database status
 SELECT name, status, created_at FROM `databases`;
+
+
+USE nightwatch_db;
+
+-- Add the related_event_id column
+ALTER TABLE `action_history`
+    ADD COLUMN `related_event_id` BIGINT NULL;
+
+-- Add the foreign key constraint
+ALTER TABLE `action_history`
+    ADD CONSTRAINT `fk_action_history_related_event`
+        FOREIGN KEY (`related_event_id`) REFERENCES `action_history`(`id`)
+            ON DELETE SET NULL;

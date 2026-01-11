@@ -8,7 +8,6 @@ import { AiService } from '../ai/ai.service';
 import { EventsGateway } from '../events/events.gateway';
 import { Metric } from './entities/metric.entity';
 
-// Define a specific type for anomaly data for better type safety.
 interface Anomaly {
   issue_type: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
@@ -33,7 +32,6 @@ export class MonitoringService {
     this.logger.log('Running monitoring cycle...');
     const databases = await this.databaseRepository.find();
 
-    // Process all databases in parallel for better performance.
     await Promise.all(
       databases.map(async (db) => {
         try {
@@ -43,12 +41,12 @@ export class MonitoringService {
           const anomaly = this.detectAnomaly(metrics);
           if (anomaly) {
             const incident = await this.createIncident(db, anomaly);
-            this.eventsGateway.broadcast('incident_detected', incident);
-            // Do not await this, let it run in the background.
-            this.aiService.startIncidentAnalysis(incident);
+            if (incident) {
+              this.eventsGateway.broadcast('incident_detected', incident);
+              this.aiService.startIncidentAnalysis(incident);
+            }
           }
         } catch (error) {
-          // Catch errors per-database to prevent crashing the whole cron job.
           this.logger.error(
             `Failed to process monitoring for database: ${db.name}`,
             error.stack,
@@ -75,18 +73,46 @@ export class MonitoringService {
   }
 
   private detectAnomaly(metrics: Partial<Metric>): Anomaly | null {
-    // Add a type guard to ensure cpuPercent is defined and is a number.
+    // 1. High CPU
     if (typeof metrics.cpuPercent === 'number' && metrics.cpuPercent > 90) {
       return {
         issue_type: 'high_cpu',
         severity: 'critical',
-        symptoms: `CPU at ${metrics.cpuPercent.toFixed(2)}%`,
+        symptoms: `CPU usage critical at ${metrics.cpuPercent.toFixed(1)}%. Possible runaway query or resource contention.`,
       };
     }
+
+    // 2. Memory Leak / High Usage
+    if (typeof metrics.memoryPercent === 'number' && metrics.memoryPercent > 85) {
+      return {
+        issue_type: 'memory_pressure',
+        severity: 'high',
+        symptoms: `Memory usage high at ${metrics.memoryPercent.toFixed(1)}%. Buffer pool may be undersized.`,
+      };
+    }
+
+    // 3. Connection Spike
+    if (typeof metrics.activeConnections === 'number' && metrics.activeConnections > 120) {
+      return {
+        issue_type: 'connection_spike',
+        severity: 'medium',
+        symptoms: `Active connections spiked to ${metrics.activeConnections} (Max: 150). Risk of connection refusal.`,
+      };
+    }
+
+    // 4. Slow Query Storm
+    if (typeof metrics.slowQueriesCount === 'number' && metrics.slowQueriesCount > 3) {
+      return {
+        issue_type: 'slow_query_storm',
+        severity: 'high',
+        symptoms: `Detected ${metrics.slowQueriesCount} slow queries in the last window. Application performance degrading.`,
+      };
+    }
+
     return null;
   }
 
-  private async createIncident(db: Database, anomaly: Anomaly): Promise<Incident> {
+  private async createIncident(db: Database, anomaly: Anomaly): Promise<Incident | null> {
     const newIncident = this.incidentRepository.create({
       database: db,
       issueType: anomaly.issue_type,
@@ -94,6 +120,7 @@ export class MonitoringService {
       symptoms: anomaly.symptoms,
       status: 'open',
     });
-    return this.incidentRepository.save(newIncident);
+    const saved = await this.incidentRepository.save(newIncident);
+    return this.incidentRepository.findOne({ where: { id: saved.id }, relations: ['database'] });
   }
 }
