@@ -6,7 +6,8 @@ import { DatabaseGrid } from './DatabaseGrid';
 import { MetricsCards } from './MetricsCards';
 import { IncidentCards } from './IncidentCards';
 import { ActivityReport } from './ActivityReport';
-import { PerformanceCharts } from './PerformanceCharts';
+import { AutonomousActions } from './AutonomousActions';
+import { PerformanceCharts } from './PerformanceCharts'; // Ensure it's imported
 import axios from 'axios';
 
 export const Dashboard: React.FC = () => {
@@ -42,12 +43,8 @@ export const Dashboard: React.FC = () => {
 
     fetchInitialData();
 
-    // Set up a poller to refresh the database list every 30 seconds
     const dbPoller = setInterval(fetchDatabases, 30000);
-
-    return () => {
-      clearInterval(dbPoller);
-    };
+    return () => clearInterval(dbPoller);
   }, []);
 
   useEffect(() => {
@@ -84,15 +81,18 @@ export const Dashboard: React.FC = () => {
       <div className="space-y-6 mt-4">
         <DatabaseGrid databases={databases} />
         <MetricsCards metrics={metrics} />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <PerformanceCharts metrics={metrics} />
-          </div>
+
+        {/* Re-introduce the PerformanceCharts component */}
+        <div className="grid grid-cols-1 gap-6">
+          <PerformanceCharts metrics={metrics} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <AutonomousActions />
           <ActivityReport />
         </div>
         <div>
           <h2 className="text-2xl font-bold mb-4">Recent Incidents</h2>
-          {/* Add a container with fixed height and vertical scroll */}
           <div className="h-[450px] overflow-y-auto pr-4">
             <IncidentCards incidents={incidents} />
           </div>

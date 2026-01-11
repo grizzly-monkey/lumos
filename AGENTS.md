@@ -254,7 +254,7 @@ You are an expert Database Administrator. Create the database schema and a TypeS
 
 **REQUIREMENTS:**
 - Create tables: `databases`, `metrics`, `incidents`, `agent_actions`, `baseline_patterns`.
-- Use `VECTOR(768)` for embeddings (optimized for Gemini's `text-embedding-004` model).
+- Use `VECTOR(768)` for embeddings (optimized for Gemini's `gemini-embedding-001` model).
 - Add appropriate indexes, foreign keys, and comments.
 - Ensure tables are created with `IF NOT EXISTS` for idempotency.
 
@@ -545,7 +545,7 @@ You are an AI and NestJS integration specialist. Build the AI decision-making an
 
 **4. `backend/src/ai/providers/factory.ts` & Provider Implementations**
 - Create the `AIProviderFactory` and the `GeminiProvider` class as described in the original prompt.
-- Ensure the `GeminiProvider` uses the `gemini-1.5-pro` model for analysis and `text-embedding-004` for embeddings.
+- Ensure the `GeminiProvider` uses the `gemini-1.5-pro` model for analysis and `gemini-embedding-001` for embeddings.
 - Implement robust error handling and JSON parsing, especially for the AI's response.
 
 **GEMINI PROMPT TEMPLATE (to be used in `ai.service.ts`):**

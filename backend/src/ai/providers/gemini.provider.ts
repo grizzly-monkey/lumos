@@ -1,42 +1,84 @@
-import { Injectable } from '@nestjs/common';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { Injectable, Logger } from '@nestjs/common';
+import { GoogleGenAI } from '@google/genai';
 import { Incident } from '../../monitoring/entities/incident.entity';
 
 @Injectable()
 export class GeminiProvider {
-  private readonly genAI: GoogleGenerativeAI;
+  private readonly logger = new Logger(GeminiProvider.name);
+  private readonly genAI: GoogleGenAI;
+  private readonly chatModelName: string = 'gemini-2.5-pro';
+  private readonly embeddingModelName = 'gemini-embedding-001';
 
   constructor() {
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
-      throw new Error('GOOGLE_API_KEY environment variable is not set');
+      throw new Error('GOOGLE_API_KEY is not set in the environment variables.');
     }
-    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.genAI = new GoogleGenAI({ apiKey: apiKey });
   }
 
   async generateEmbedding(text: string): Promise<number[]> {
-    const model = this.genAI.getGenerativeModel({
-      model: 'text-embedding-004',
-    });
-    const result = await model.embedContent(text);
-    return result.embedding.values;
+    try {
+      const result = await this.genAI.models.embedContent({
+        model: this.embeddingModelName,
+        contents: text,
+      });
+
+      // The new SDK returns an 'embeddings' array. We take the first one.
+      const values = result.embeddings?.[0]?.values;
+      
+      if (!values) {
+        throw new Error('No embedding values returned from the API.');
+      }
+      
+      return values;
+    } catch (error) {
+      this.logger.error('Failed to generate embedding:', error);
+      // Return a zero vector as a fallback to prevent crashing the app
+      return Array(768).fill(0);
+    }
   }
 
-  async analyzeIncident(
-    incident: Incident,
-    similarIncidents: Incident[],
-  ): Promise<any> {
-    const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+  async analyzeIncident(incident: Incident, similarIncidents: Incident[]): Promise<any> {
     const prompt = this.buildPrompt(incident, similarIncidents);
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return JSON.parse(response.text());
+
+    try {
+      const result = await this.genAI.models.generateContent({
+        model: this.chatModelName,
+        contents: prompt,
+        config: {
+          temperature: 0.2,
+        },
+      });
+
+      if (!result) {
+        throw new Error('No AI response received.');
+      }
+      
+      const rawText = result.text;
+
+      if (!rawText) {
+        throw new Error('No text found in the AI response.');
+      }
+
+      const startIndex = rawText.indexOf('{');
+      const endIndex = rawText.lastIndexOf('}');
+      if (startIndex === -1 || endIndex === -1) {
+        throw new Error('No valid JSON object found in the AI response.');
+      }
+      this.logger.log(rawText)
+
+      const jsonString = rawText.substring(startIndex, endIndex + 1);
+      return JSON.parse(jsonString);
+    } catch (error) {
+      this.logger.error('Failed to parse JSON from Gemini response.', {
+        error: error.message,
+      });
+      throw new Error('AI response was not in the expected JSON format.');
+    }
   }
 
-  private buildPrompt(
-    incident: Incident,
-    similarIncidents: Incident[],
-  ): string {
+  private buildPrompt(incident: Incident, similarIncidents: Incident[]): string {
     return `You are an autonomous DBA agent, "NightWatch". Your task is to analyze a database incident and decide the best course of action.
 
 **Current Incident:**

@@ -22,48 +22,33 @@ export class VectorService {
   async findSimilarIncidents(incident: Incident): Promise<Incident[]> {
     const embeddingArray = await this.generateEmbedding(incident.symptoms);
 
-    // The transformer will handle saving the number[] as a BLOB.
+    // The transformer correctly handles saving the number[] as a BLOB for INSERT/UPDATE.
     incident.symptomsEmbedding = embeddingArray;
     await this.incidentRepository.save(incident);
 
-    // =================================================================
-    // **THE DEFINITIVE FIX: Use Raw SQL for the Vector Query**
-    // =================================================================
-
-    // 1. Create the raw string of numbers for the VECTOR() function.
-    const embeddingParam = embeddingArray.join(',');
-
-    // 2. Define the raw SQL query to get only the IDs of similar incidents.
-    // We inject the embedding string directly, which is safe as it's not user-generated.
-    // We use '?' for other parameters to prevent SQL injection.
-    const rawQuery = `
-      SELECT
-        id,
-        VEC_DISTANCE_COSINE(symptoms_embedding, VECTOR(${embeddingParam})) as score
-      FROM incidents
-      WHERE status = ? AND id != ?
-      ORDER BY score ASC
-      LIMIT 5;
-    `;
-
-    // 3. Execute the raw query.
-    const similarIncidentIds: { id: number }[] = await this.incidentRepository.query(
-      rawQuery,
-      ['resolved', incident.id],
-    );
-
-    if (similarIncidentIds.length === 0) {
-      return [];
-    }
-
-    // 4. Extract just the IDs.
-    const ids = similarIncidentIds.map((r) => r.id);
-
-    // 5. Use TypeORM's reliable `findByIds` to fetch the full entities.
-    // This correctly hydrates the objects and their relations.
-    return this.incidentRepository.find({
-      where: { id: In(ids) },
-      relations: ['database'],
+    // **THE DEFINITIVE FIX**: Manually construct the hex literal for the SELECT query.
+    const buffer = Buffer.alloc(embeddingArray.length * 4);
+    embeddingArray.forEach((val, index) => {
+      buffer.writeFloatLE(val, index * 4);
     });
+    const hexLiteral = `x'${buffer.toString('hex')}'`;
+
+    const similarIncidents = await this.incidentRepository
+      .createQueryBuilder('incident')
+      .leftJoinAndSelect('incident.database', 'database')
+      // Directly inject the hex literal into the function call.
+      // This bypasses the incorrect parameter binding.
+      .addSelect(
+        `VEC_DISTANCE_COSINE(incident.symptoms_embedding, ${hexLiteral})`,
+        'score',
+      )
+      .where('incident.status = :status', { status: 'resolved' })
+      .andWhere('incident.id != :id', { id: incident.id })
+      // We no longer use .setParameter for the embedding.
+      .orderBy('score', 'ASC')
+      .limit(5)
+      .getMany();
+
+    return similarIncidents;
   }
 }
