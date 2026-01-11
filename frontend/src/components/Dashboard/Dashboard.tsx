@@ -4,8 +4,7 @@ import type { Database, Incident, Metric } from '../../types';
 import { StatusHeader } from './StatusHeader';
 import { MetricsCards } from './MetricsCards';
 import { IncidentCards } from './IncidentCards';
-import { ActivityReport } from './ActivityReport';
-import { AutonomousActions } from './AutonomousActions';
+import { DatabaseTimeline } from './DatabaseTimeline'; // Import the new component
 import { AgentSummary } from './AgentSummary';
 import axios from 'axios';
 
@@ -50,10 +49,8 @@ export const Dashboard: React.FC = () => {
     if (!socket) return;
 
     const handleMetricsUpdate = (data: Metric) => {
-      // Keep a larger history for the sparklines (e.g., last 50 points per DB)
       setMetrics((prev) => {
         const newMetrics = [data, ...prev];
-        // Optional: Prune old metrics to prevent memory leaks if running for days
         return newMetrics.slice(0, 500); 
       });
     };
@@ -85,15 +82,16 @@ export const Dashboard: React.FC = () => {
       <div className="space-y-6 mt-4">
         <AgentSummary />
         
-        {/* New MetricsCards replaces DatabaseGrid and PerformanceCharts */}
         <MetricsCards metrics={metrics} databases={databases} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <AutonomousActions />
-          <ActivityReport />
-        </div>
+        {/* New Database Timeline View */}
         <div>
-          <h2 className="text-2xl font-bold mb-4">Recent Incidents</h2>
+          <h2 className="text-xl font-bold mb-4 text-slate-200">Live Database Activity</h2>
+          <DatabaseTimeline databases={databases} />
+        </div>
+
+        <div>
+          <h2 className="text-xl font-bold mb-4 text-slate-200">Recent Incidents</h2>
           <div className="h-[450px] overflow-y-auto pr-4">
             <IncidentCards incidents={incidents} />
           </div>

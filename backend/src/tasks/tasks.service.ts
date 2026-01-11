@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { ActionHistory } from '../actions/entities/action-history.entity';
 import { Database } from '../monitoring/entities/database.entity';
 import { DbLog } from '../monitoring/entities/db-log.entity';
+import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
 export class TasksService {
@@ -17,7 +18,21 @@ export class TasksService {
     private databaseRepository: Repository<Database>,
     @InjectRepository(DbLog)
     private dbLogRepository: Repository<DbLog>,
+    private eventsGateway: EventsGateway,
   ) {}
+
+  /**
+   * Helper to save action history and broadcast the event in real-time.
+   */
+  private async logAction(data: Partial<ActionHistory>) {
+    const record = this.actionHistoryRepository.create(data);
+    const savedRecord = await this.actionHistoryRepository.save(record);
+    
+    // Broadcast the new action to the frontend immediately
+    this.eventsGateway.broadcast('action_logged', savedRecord);
+    
+    return savedRecord;
+  }
 
   @Cron(CronExpression.EVERY_30_SECONDS)
   async handleBackupVerification() {
@@ -25,7 +40,7 @@ export class TasksService {
     const databases = await this.databaseRepository.find();
     for (const db of databases) {
       const isSuccess = Math.random() > 0.05;
-      const record = this.actionHistoryRepository.create({
+      await this.logAction({
         database: db,
         actionType: 'backup_verification',
         description: isSuccess
@@ -35,7 +50,6 @@ export class TasksService {
         success: isSuccess,
         details: { verificationMethod: 'checksum' },
       });
-      await this.actionHistoryRepository.save(record);
     }
   }
 
@@ -57,7 +71,7 @@ export class TasksService {
         db.status = 'offline';
         await this.databaseRepository.save(db);
       }
-      const record = this.actionHistoryRepository.create({
+      await this.logAction({
         database: db,
         actionType: 'database_health_check',
         description,
@@ -65,7 +79,6 @@ export class TasksService {
         success: isHealthy,
         details: { checkMethod: 'connection_ping' },
       });
-      await this.actionHistoryRepository.save(record);
     }
   }
 
@@ -76,7 +89,7 @@ export class TasksService {
     for (const db of databases) {
       const slowQueries = Math.floor(Math.random() * 3);
       const isSuccess = slowQueries === 0;
-      const record = this.actionHistoryRepository.create({
+      await this.logAction({
         database: db,
         actionType: 'performance_monitoring',
         description: isSuccess
@@ -86,7 +99,6 @@ export class TasksService {
         success: isSuccess,
         details: { checked: ['cpu', 'memory', 'slow_queries'] },
       });
-      await this.actionHistoryRepository.save(record);
     }
   }
 
@@ -97,7 +109,7 @@ export class TasksService {
     for (const db of databases) {
       const runawayQueries = Math.random() < 0.1 ? Math.floor(Math.random() * 2) + 1 : 0;
       if (runawayQueries > 0) {
-        const record = this.actionHistoryRepository.create({
+        await this.logAction({
           database: db,
           actionType: 'kill_query',
           description: `Auto-killed ${runawayQueries} runaway quer(ies) lasting over 5 minutes.`,
@@ -105,16 +117,14 @@ export class TasksService {
           success: true,
           details: { queryId: [1234, 5678].slice(0, runawayQueries) },
         });
-        await this.actionHistoryRepository.save(record);
       } else {
-        const record = this.actionHistoryRepository.create({
+        await this.logAction({
           database: db,
           actionType: 'connection_pool_check',
           description: `Connection pool for ${db.name} is healthy.`,
           executedBy: 'scheduled_task',
           success: true,
         });
-        await this.actionHistoryRepository.save(record);
       }
     }
   }
@@ -146,7 +156,7 @@ export class TasksService {
         description = `Log analysis for ${db.name} completed. No recent log entries found.`;
         success = true;
       }
-      const record = this.actionHistoryRepository.create({
+      await this.logAction({
         database: db,
         actionType: 'log_analysis',
         description,
@@ -154,7 +164,6 @@ export class TasksService {
         success,
         details: lastLog ? { logId: lastLog.threadId, type: lastLog.commandType } : {},
       });
-      await this.actionHistoryRepository.save(record);
     }
   }
 
@@ -166,7 +175,7 @@ export class TasksService {
       const diskUsage = Math.random() < 0.1 ? 90 + Math.random() * 9 : 40 + Math.random() * 30;
       if (diskUsage > 90) {
         const freedSpace = (Math.random() * 5 + 1).toFixed(1);
-        const record = this.actionHistoryRepository.create({
+        await this.logAction({
           database: db,
           actionType: 'clear_logs',
           description: `Disk usage critical (${diskUsage.toFixed(1)}%). Auto-archived and purged ${freedSpace}GB of old transaction logs.`,
@@ -174,9 +183,8 @@ export class TasksService {
           success: true,
           details: { initialUsage: diskUsage, freedGb: freedSpace },
         });
-        await this.actionHistoryRepository.save(record);
       } else {
-        const record = this.actionHistoryRepository.create({
+        await this.logAction({
           database: db,
           actionType: 'storage_check',
           description: `Storage capacity check passed. Disk usage at ${diskUsage.toFixed(1)}%.`,
@@ -184,7 +192,6 @@ export class TasksService {
           success: true,
           details: { usagePercent: diskUsage },
         });
-        await this.actionHistoryRepository.save(record);
       }
     }
   }
@@ -196,7 +203,7 @@ export class TasksService {
     for (const db of databases) {
       const hasDeadlock = Math.random() < 0.05;
       if (hasDeadlock) {
-        const record = this.actionHistoryRepository.create({
+        await this.logAction({
           database: db,
           actionType: 'deadlock_detected',
           description: `Deadlock detected between transaction 1023 and 1045. Suggest reviewing index on 'orders' table to reduce lock contention.`,
@@ -204,16 +211,14 @@ export class TasksService {
           success: false,
           details: { victimTrx: 1023, winnerTrx: 1045 },
         });
-        await this.actionHistoryRepository.save(record);
       } else {
-        const record = this.actionHistoryRepository.create({
+        await this.logAction({
           database: db,
           actionType: 'deadlock_check',
           description: `Deadlock monitor scan completed. No deadlocks found.`,
           executedBy: 'scheduled_task',
           success: true,
         });
-        await this.actionHistoryRepository.save(record);
       }
     }
   }
@@ -225,7 +230,7 @@ export class TasksService {
     for (const db of databases) {
       const fragmentation = Math.random() < 0.1 ? 30 + Math.random() * 40 : Math.random() * 10;
       if (fragmentation > 30) {
-        const record = this.actionHistoryRepository.create({
+        await this.logAction({
           database: db,
           actionType: 'rebuild_index',
           description: `High fragmentation detected (${fragmentation.toFixed(1)}%) on table 'orders'. Auto-rebuilt index 'idx_customer_id'.`,
@@ -233,9 +238,8 @@ export class TasksService {
           success: true,
           details: { initialFragmentation: fragmentation, table: 'orders', index: 'idx_customer_id' },
         });
-        await this.actionHistoryRepository.save(record);
       } else {
-        const record = this.actionHistoryRepository.create({
+        await this.logAction({
           database: db,
           actionType: 'index_check',
           description: `Index maintenance check passed. Max fragmentation at ${fragmentation.toFixed(1)}%.`,
@@ -243,7 +247,6 @@ export class TasksService {
           success: true,
           details: { maxFragmentation: fragmentation },
         });
-        await this.actionHistoryRepository.save(record);
       }
     }
   }
@@ -255,7 +258,7 @@ export class TasksService {
     for (const db of databases) {
       const statsAgeDays = Math.random() < 0.1 ? 3 + Math.random() * 5 : Math.random() * 2;
       if (statsAgeDays > 3) {
-        const record = this.actionHistoryRepository.create({
+        await this.logAction({
           database: db,
           actionType: 'update_statistics',
           description: `Table statistics for 'products' are stale (${statsAgeDays.toFixed(1)} days old). Auto-running ANALYZE TABLE.`,
@@ -263,9 +266,8 @@ export class TasksService {
           success: true,
           details: { table: 'products', ageDays: statsAgeDays },
         });
-        await this.actionHistoryRepository.save(record);
       } else {
-        const record = this.actionHistoryRepository.create({
+        await this.logAction({
           database: db,
           actionType: 'statistics_check',
           description: `Statistics update check passed. Stats are fresh (${statsAgeDays.toFixed(1)} days old).`,
@@ -273,26 +275,18 @@ export class TasksService {
           success: true,
           details: { maxAgeDays: statsAgeDays },
         });
-        await this.actionHistoryRepository.save(record);
       }
     }
   }
 
-  /**
-   * Runs every 30 seconds to check HA/DR status (Replication Lag).
-   */
   @Cron(CronExpression.EVERY_30_SECONDS)
   async handleHaDrStatus() {
     this.logger.log('Running Daily Task: HA/DR Status Check');
     const databases = await this.databaseRepository.find();
-
     for (const db of databases) {
-      // Simulate replication lag. 5% chance of high lag (> 10s)
       const replicationLag = Math.random() < 0.05 ? 10 + Math.random() * 20 : Math.random() * 2;
-      
       let description: string;
       let success: boolean;
-
       if (replicationLag > 10) {
         description = `High replication lag detected (${replicationLag.toFixed(1)}s) on secondary node. HA status degraded.`;
         success = false;
@@ -300,8 +294,7 @@ export class TasksService {
         description = `HA/DR status healthy. Replication lag is low (${replicationLag.toFixed(1)}s).`;
         success = true;
       }
-
-      const record = this.actionHistoryRepository.create({
+      await this.logAction({
         database: db,
         actionType: 'ha_dr_check',
         description,
@@ -309,7 +302,6 @@ export class TasksService {
         success,
         details: { lagSeconds: replicationLag },
       });
-      await this.actionHistoryRepository.save(record);
     }
   }
 }
