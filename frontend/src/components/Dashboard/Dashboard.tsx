@@ -8,7 +8,7 @@ import { IncidentCards } from './IncidentCards';
 import { ActivityReport } from './ActivityReport';
 import { AutonomousActions } from './AutonomousActions';
 import { PerformanceCharts } from './PerformanceCharts';
-import { AgentSummary } from './AgentSummary'; // Import the new component
+import { AgentSummary } from './AgentSummary';
 import axios from 'axios';
 
 export const Dashboard: React.FC = () => {
@@ -70,17 +70,16 @@ export const Dashboard: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-background">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 animate-fade-in">
       <StatusHeader isConnected={isConnected} />
       <div className="space-y-6 mt-4">
-        {/* Add the AgentSummary at the top */}
         <AgentSummary />
         
         <DatabaseGrid databases={databases} />

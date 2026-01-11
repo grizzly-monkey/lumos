@@ -40,8 +40,12 @@ export const AutonomousActions: React.FC = () => {
         ) : (
           <div className="h-[450px] overflow-y-auto pr-4 space-y-4">
             {actions.length > 0 ? (
-              actions.map((action) => (
-                <div key={action.id} className="flex items-start space-x-3">
+              actions.map((action, index) => (
+                <div 
+                  key={action.id} 
+                  className="flex items-start space-x-3 animate-slide-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
                   <div
                     className={`h-6 w-6 rounded-full flex-shrink-0 mt-1 ${
                       action.success ? 'bg-blue-500' : 'bg-orange-500'
