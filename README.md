@@ -2,7 +2,26 @@
 
 ## **Illuminating the dark corners of your database.**
 
-LUMOS is an autonomous AI-powered agent that monitors MariaDB databases 24/7, detects issues, and automatically takes corrective actions without human intervention.
+Lumos is an autonomous AI-powered agent that monitors MariaDB databases 24/7, detects issues, and automatically takes corrective actions without human intervention.
+
+## 📊 Automated DBA Tasks
+
+LUMOS automatically handles these tasks:
+
+1. ✅ **Backup Verification** - Checks backup completion and integrity.
+2. ✅ **Connection Pool Management** - Kills long queries, scales connections.
+3. ✅ **Performance Monitoring** - Tracks metrics vs baseline.
+4. ✅ **Index Maintenance** - Rebuilds fragmented indexes.
+5. ✅ **Storage Management** - Archives logs when disk is full.
+6. ✅ **Deadlock Detection** - Monitors and resolves deadlocks.
+7. ✅ **Statistics Updates** - Auto-updates when query plans degrade.
+8. ✅ **Log Analysis** - Parses errors and applies known fixes.
+9. ✅ **HA/DR Checks** - Monitors replication health.
+10. ✅ **Query Optimization** - Suggests and applies optimizations.
+    
+
+![Demo](https://github.com/grizzly-monkey/lumos/blob/main/image.png)
+
 
 ## 🎯 Features
 
@@ -14,6 +33,8 @@ LUMOS is an autonomous AI-powered agent that monitors MariaDB databases 24/7, de
 - **Real-time Dashboard**: Beautiful web interface with live updates via WebSocket.
 - **Smart Learning**: Gets better over time by storing incident patterns as vectors.
 - **Multi-Database Support**: Monitor multiple databases simultaneously.
+
+
 
 ## 🏗️ Architecture
 
@@ -105,20 +126,7 @@ LUMOS is an autonomous AI-powered agent that monitors MariaDB databases 24/7, de
    http://localhost:5173
    ```
 
-## 📊 Automated DBA Tasks
 
-LUMOS automatically handles these tasks:
-
-1. ✅ **Backup Verification** - Checks backup completion and integrity.
-2. ✅ **Connection Pool Management** - Kills long queries, scales connections.
-3. ✅ **Performance Monitoring** - Tracks metrics vs baseline.
-4. ✅ **Index Maintenance** - Rebuilds fragmented indexes.
-5. ✅ **Storage Management** - Archives logs when disk is full.
-6. ✅ **Deadlock Detection** - Monitors and resolves deadlocks.
-7. ✅ **Statistics Updates** - Auto-updates when query plans degrade.
-8. ✅ **Log Analysis** - Parses errors and applies known fixes.
-9. ✅ **HA/DR Checks** - Monitors replication health.
-10. ✅ **Query Optimization** - Suggests and applies optimizations.
 
 ## 🤖 AI Providers
 
